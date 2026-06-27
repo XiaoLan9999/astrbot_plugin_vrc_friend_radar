@@ -82,7 +82,7 @@ def _rebind_handlers_to_module(cls, module_name: str) -> None:
     "astrbot_plugin_vrc_friend_radar",
     "zhumengling",
     "VRChat 好友上线/状态/地图切换监控与播报，支持邀请审批、灵魂画像、同房提醒等。",
-    "0.2.5",
+    "0.2.6",
 )
 class VRCFriendRadarPlugin(
     Star,

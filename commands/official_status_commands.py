@@ -7,6 +7,8 @@ from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
 
+from ..core.official_status import describe_official_status_exception
+
 if TYPE_CHECKING:
     from ..main import VRCFriendRadarPlugin
 
@@ -15,8 +17,19 @@ class OfficialStatusCommandsMixin:
     """官方状态页命令 Mixin，self 即为插件实例。"""
 
     async def _build_official_status_reply(self: 'VRCFriendRadarPlugin') -> str:
-        snapshot = await self.official_status.fetch_once()
-        return self.official_status.format_snapshot(snapshot)
+        try:
+            snapshot = await self.official_status.fetch_once(timeout_seconds=3.5)
+            return self.official_status.format_snapshot(snapshot)
+        except Exception as exc:
+            cached = self.official_status.get_last_snapshot()
+            if cached:
+                detail = describe_official_status_exception(exc)
+                return (
+                    f"⚠️ 实时查询 VRChat 官方状态失败：{detail}\n"
+                    "以下为最近一次缓存结果：\n"
+                    f"{self.official_status.format_snapshot(cached)}"
+                )
+            raise
 
     def _write_official_status_config_value(self: 'VRCFriendRadarPlugin', key: str, value: Any) -> None:
         cfg = self.cfg.raw_config
@@ -40,8 +53,9 @@ class OfficialStatusCommandsMixin:
         try:
             text = await self._build_official_status_reply()
         except Exception as exc:
-            logger.warning(f"[vrc_friend_radar] 查询官方状态失败: {exc}")
-            yield event.plain_result(f"查询 VRChat 官方状态失败：{exc}")
+            detail = describe_official_status_exception(exc)
+            logger.warning(f"[vrc_friend_radar] 查询官方状态失败: {detail}")
+            yield event.plain_result(f"查询 VRChat 官方状态失败：{detail}")
             return
         yield event.plain_result(text)
 
@@ -50,8 +64,9 @@ class OfficialStatusCommandsMixin:
         try:
             text = await self._build_official_status_reply()
         except Exception as exc:
-            logger.warning(f"[vrc_friend_radar] 查询官方服务器状态失败: {exc}")
-            yield event.plain_result(f"查询 VRChat 官方服务器状态失败：{exc}")
+            detail = describe_official_status_exception(exc)
+            logger.warning(f"[vrc_friend_radar] 查询官方服务器状态失败: {detail}")
+            yield event.plain_result(f"查询 VRChat 官方服务器状态失败：{detail}")
             return
         yield event.plain_result(text)
 

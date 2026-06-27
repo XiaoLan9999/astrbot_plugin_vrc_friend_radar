@@ -16,7 +16,7 @@ except Exception:
 
     logger = logging.getLogger("vrc_friend_radar")
 
-from .config import PluginConfig
+from .config import DEFAULT_OFFICIAL_STATUS_SUMMARY_URL, PluginConfig
 
 if TYPE_CHECKING:
     from .repository import SettingsRepository
@@ -51,10 +51,39 @@ INCIDENT_STATUS_LABELS = {
 
 ACTIVE_INCIDENT_DONE_STATUSES = {"resolved", "postmortem", "completed"}
 ACTIVE_MAINTENANCE_DONE_STATUSES = {"completed"}
+DEFAULT_OFFICIAL_STATUS_STATUS_URL = "https://status.vrchat.com/api/v2/status.json"
+
+
+class OfficialStatusFetchError(RuntimeError):
+    pass
 
 
 def _to_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def describe_official_status_exception(exc: Exception) -> str:
+    if isinstance(exc, OfficialStatusFetchError):
+        return str(exc) or "官方状态 API 请求失败"
+    name = type(exc).__name__
+    text = str(exc or "").strip()
+    if isinstance(
+        exc,
+        (
+            httpx.ConnectTimeout,
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.PoolTimeout,
+            TimeoutError,
+        ),
+    ):
+        return f"{name}: 请求超时"
+    if isinstance(exc, httpx.HTTPStatusError):
+        response = exc.response
+        return f"{name}: HTTP {response.status_code} {response.reason_phrase}"
+    if isinstance(exc, httpx.RequestError):
+        return f"{name}: {text or repr(exc)}"
+    return f"{name}: {text or repr(exc)}"
 
 
 def _label(raw: str, mapping: dict[str, str]) -> str:
@@ -271,24 +300,77 @@ class OfficialStatusService:
             pass
         self._task = None
 
-    async def fetch_once(self) -> OfficialStatusSnapshot:
-        url = _to_text(self.cfg.official_status_summary_url)
+    def get_last_snapshot(self) -> OfficialStatusSnapshot | None:
+        return self._last_snapshot
+
+    def _status_url_candidates(self) -> list[str]:
+        candidates = [
+            _to_text(self.cfg.official_status_summary_url),
+            DEFAULT_OFFICIAL_STATUS_SUMMARY_URL,
+            DEFAULT_OFFICIAL_STATUS_STATUS_URL,
+        ]
+        result: list[str] = []
+        seen: set[str] = set()
+        for item in candidates:
+            if not item or item in seen:
+                continue
+            seen.add(item)
+            result.append(item)
+        return result
+
+    @staticmethod
+    def _build_http_timeout(seconds: float) -> httpx.Timeout:
+        seconds = max(0.5, float(seconds or 1.0))
+        return httpx.Timeout(
+            seconds,
+            connect=min(1.5, seconds),
+            read=seconds,
+            write=seconds,
+            pool=min(0.5, seconds),
+        )
+
+    async def fetch_once(self, timeout_seconds: float = 4.0) -> OfficialStatusSnapshot:
         headers = {
             "User-Agent": _to_text(self.cfg.vrchat_user_agent) or "AstrBotVRCFriendRadar/0.1.0",
             "Accept": "application/json",
         }
-        timeout = httpx.Timeout(20.0, connect=8.0)
-        async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            payload = response.json()
-        if not isinstance(payload, dict):
-            raise ValueError("官方状态 API 返回格式不是 JSON object")
-        snapshot = parse_official_status_payload(payload)
-        self._last_snapshot = snapshot
-        self._last_error = ""
-        self._last_error_at = 0.0
-        return snapshot
+        timeout_seconds = max(1.0, min(float(timeout_seconds or 4.0), 15.0))
+        deadline = time.monotonic() + timeout_seconds
+        errors: list[str] = []
+
+        async with httpx.AsyncClient(
+            timeout=self._build_http_timeout(timeout_seconds),
+            headers=headers,
+            follow_redirects=True,
+            trust_env=False,
+            http2=False,
+        ) as client:
+            for url in self._status_url_candidates():
+                remaining = deadline - time.monotonic()
+                if remaining < 0.5:
+                    errors.append(f"{url}: TimeoutError: 总查询时间预算已耗尽")
+                    break
+                try:
+                    response = await client.get(
+                        url,
+                        timeout=self._build_http_timeout(min(2.5, remaining)),
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
+                    if not isinstance(payload, dict):
+                        raise ValueError("官方状态 API 返回格式不是 JSON object")
+                    snapshot = parse_official_status_payload(payload)
+                    self._last_snapshot = snapshot
+                    self._last_error = ""
+                    self._last_error_at = 0.0
+                    return snapshot
+                except Exception as exc:
+                    error_text = describe_official_status_exception(exc)
+                    errors.append(f"{url}: {error_text}")
+                    logger.warning(f"[vrc_friend_radar] 官方状态 API 请求失败 url={url} err={error_text}")
+
+        detail = "；".join(errors) if errors else "没有可用的官方状态 API URL"
+        raise OfficialStatusFetchError(detail)
 
     async def check_once(self, allow_notify: bool = True) -> OfficialStatusSnapshot:
         snapshot = await self.fetch_once()
@@ -322,9 +404,9 @@ class OfficialStatusService:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                self._last_error = str(exc)
+                self._last_error = describe_official_status_exception(exc)
                 self._last_error_at = time.time()
-                logger.warning(f"[vrc_friend_radar] 官方状态监控查询失败: {exc}")
+                logger.warning(f"[vrc_friend_radar] 官方状态监控查询失败: {self._last_error}")
 
             interval = max(120, int(self.cfg.official_status_poll_interval_seconds or 300))
             try:

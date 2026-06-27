@@ -1,5 +1,10 @@
 # Release Note
 
+## 0.2.6
+
+- Hardened `/vrc官方状态` and `/vrc服务器状态` against empty timeout errors.
+- Added short request timeout, direct networking (`trust_env=false`), fallback status endpoint, cached-result fallback, and explicit error text.
+
 ## 0.2.5
 
 - Added VRChat official Statuspage monitoring via `https://status.vrchat.com/api/v2/summary.json`.
