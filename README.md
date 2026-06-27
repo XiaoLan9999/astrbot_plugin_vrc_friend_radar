@@ -27,6 +27,7 @@
 - 今日热门世界统计（基于“今天上线过的好友”口径）
 - 推荐世界简介自动翻译（依赖 AstrBot 当前可用 LLM；失败会回退原文）
 - 好友灵魂画像
+- VRChat 官方状态页监控，支持独立播报群与手动查询
 ---
 
 ## 安装方式
@@ -98,6 +99,10 @@ pyotp>=2.9.0
 | `daily_report_time` | string(HH:MM) | `21:00` | 日报独立触发时间；若未配置则继承 `daily_task_time`。 |
 | `daily_report_top_n` | int | 5 | 日报 TopN/热门世界默认 N；代码约束 `1~20`。 |
 | `world_translation_cache_max_entries` | int | 500 | 世界简介翻译缓存最大条目数；`0` 表示不清理。 |
+| `enable_official_status_monitor` | bool | false | 是否启用 VRChat 官方状态页后台监控；手动查询不受此开关影响。 |
+| `official_status_poll_interval_seconds` | int | 300 | 官方状态页轮询间隔；代码最小约束 `120`。 |
+| `official_status_notify_group_ids` | list[string] | `[]` | 官方状态播报群列表，独立于好友动态通知群。 |
+| `official_status_summary_url` | string | `https://status.vrchat.com/api/v2/summary.json` | VRChat 官方 Statuspage summary API，通常无需修改。 |
 
 ---
 
@@ -117,6 +122,8 @@ pyotp>=2.9.0
 - `/vrc监控分组 tag 群号` / `/vrc分组解绑 tag [群号]` / `/vrc分组列表`
 - `/vrc隐私 不显示位置 | 显示位置`（在目标群内执行）
 - `/vrc自适应轮询 开启|关闭`
+- `/vrc官方状态监控 开启|关闭`
+- `/vrc绑定官方状态群` / `/vrc解绑官方状态群` / `/vrc官方状态群`
 - `/vrc通知中心`：聚合展示 VRChat 站内通知
 - `/vrc通知审批 编号 同意|拒绝`
 - `/vrc接受邀请 编号` / `/vrc拒绝邀请 编号`
@@ -135,6 +142,7 @@ pyotp>=2.9.0
 - `/vrc搜索地图 关键词`
 - `/vrc搜索好友 关键词 [页码]`
 - `/vrc热门世界 [N]`
+- `/vrc官方状态` / `/vrc服务器状态`：查询 VRChat 官方状态页
 - `/vrc加好友 名字或usr_xxx`（需管理员 `/vrc公共加好友 开启`）
 - `/vrc戳 名字或usr_xxx | emojiId`：对好友发起一次 boop 互动。**VRChat 的 Boop 只能携带一个 emoji，不支持文字留言**。`emojiId` 可省略（纯戳）；也可以填官方默认 emoji 的常量名（如 `smile` / `skull` / `ghost`）或上传后的自定义贴纸 FileID。
 - `/vrc资料 名字或usr_xxx`：查看用户公开资料与当前头像
@@ -153,6 +161,7 @@ pyotp>=2.9.0
 ### 自动功能
 
 - **自适应轮询**：启用后依据监控好友在线数量在 `adaptive_polling_min_seconds` 与 `adaptive_polling_max_seconds` 之间动态调速。
+- **官方状态页监控**：`enable_official_status_monitor=true` 时按 `official_status_poll_interval_seconds` 查询 VRChat 官方状态页；故障、性能下降、维护或恢复会推送到 `official_status_notify_group_ids`。
 - **站内通知同步**：`enable_notification_sync=true` 时按 `notification_sync_interval_seconds` 周期拉取 VRChat 通知，收到新好友请求/邀请会私聊管理员摘要提醒。
 - **LLM 工具**：插件会自动向 AstrBot 注册 5 个 FunctionTool（`vrc_friend_status` / `vrc_online_friends` / `vrc_search_world` / `vrc_hot_worlds_today` / `vrc_coroom_groups`），Agent 可直接调用。
 

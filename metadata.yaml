@@ -15,6 +15,7 @@ help: |
   - 监控分组（tag），不同群订阅不同分组
   - 状态签名关键词订阅，关键字触发 @ 订阅者
   - 自适应轮询（依据在线人数动态调速）
+  - VRChat 官方服务状态页监控，可独立播报到指定群
   - 事件导出 CSV/JSON、周报
 
   管理员命令（在群内执行）：
@@ -53,6 +54,10 @@ help: |
   /vrc最近事件 - 查看最近变化事件
   /vrc公共加好友 开启|关闭 - 允许/禁止普通成员发起 /vrc加好友
   /vrc自适应轮询 开启|关闭 [min_s] [max_s] - 启停自适应轮询
+  /vrc官方状态监控 开启|关闭 - 启停 VRChat 官方状态页监控
+  /vrc绑定官方状态群 - 将当前群绑定为官方状态播报群
+  /vrc解绑官方状态群 - 将当前群从官方状态播报群移除
+  /vrc官方状态群 - 查看官方状态播报群与监控状态
   /vrc解绑登录 - 清除本地持久化登录态
   /vrc登录 用户名 密码 - 私聊 Bot 发起登录
   /vrc验证码 123456 - 私聊 Bot 提交 2FA 验证码
@@ -67,12 +72,14 @@ help: |
   /vrc搜索好友 关键词 [页码] - 在本地好友缓存中模糊搜索
   /vrc搜索地图 关键词 - 按地图名模糊搜索 VRChat 世界
   /vrc热门世界 [N] - 今日热门世界 Top N
+  /vrc官方状态 - 查询 VRChat 官方状态页（不需要登录）
+  /vrc服务器状态 - 同上，查询官方服务状态
   /vrc加好友 名字或usr_xxx - 让机器人向目标发好友请求（需管理员开启）
 
   B 站本地解析（所有人可用）：
   /bili解析 BV号 | av号 | 链接 - 返回视频直链（两步法 pagelist→playurl，platform=html5）
   /bili封面 BV号 | 链接 - 返回视频封面
-version: 0.2.4
+version: 0.2.5
 author: zhumengling
 repo: https://github.com/zhumengling/astrbot_plugin_vrc_friend_radar
 astrbot_version: ">=4.16,<5"

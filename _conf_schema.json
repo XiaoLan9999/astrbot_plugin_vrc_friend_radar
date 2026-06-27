@@ -183,6 +183,33 @@
     "hint": "使用轻量 verifyAuthToken 检测会话是否失效。默认 1800 秒（30 分钟）。设太低会增加请求频率导致被限流。",
     "default": 1800
   },
+  "enable_official_status_monitor": {
+    "type": "bool",
+    "description": "启用 VRChat 官方状态监控",
+    "hint": "开启后插件会定期查询 https://status.vrchat.com 官方状态页 API；当出现故障、性能下降、维护或恢复时，推送到“官方状态播报群”。手动 /vrc官方状态 查询不受此开关影响。",
+    "default": false
+  },
+  "official_status_poll_interval_seconds": {
+    "type": "int",
+    "description": "官方状态监控轮询间隔(秒)",
+    "hint": "默认 300 秒，代码最小约束为 120 秒。该请求不需要 VRChat 登录态。",
+    "default": 300
+  },
+  "official_status_notify_group_ids": {
+    "type": "list",
+    "description": "官方状态播报群号列表",
+    "hint": "独立于好友动态通知群，仅用于 VRChat 官方服务状态变化播报。也可在群内用 /vrc绑定官方状态群 维护。",
+    "items": {
+      "type": "string"
+    },
+    "default": []
+  },
+  "official_status_summary_url": {
+    "type": "string",
+    "description": "官方状态页 summary API",
+    "hint": "默认使用 VRChat 官方 Statuspage summary JSON；通常不需要修改。",
+    "default": "https://status.vrchat.com/api/v2/summary.json"
+  },
   "bilibili_cookie": {
     "type": "text",
     "description": "B 站 Cookie（可选）",

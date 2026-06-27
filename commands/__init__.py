@@ -8,6 +8,7 @@ from .social_commands import SocialCommandsMixin
 from .report_commands import ReportCommandsMixin
 from .admin_commands import AdminCommandsMixin
 from .soul_profile_commands import SoulProfileCommandsMixin
+from .official_status_commands import OfficialStatusCommandsMixin
 
 __all__ = [
     "LoginCommandsMixin",
@@ -18,4 +19,5 @@ __all__ = [
     "ReportCommandsMixin",
     "AdminCommandsMixin",
     "SoulProfileCommandsMixin",
+    "OfficialStatusCommandsMixin",
 ]

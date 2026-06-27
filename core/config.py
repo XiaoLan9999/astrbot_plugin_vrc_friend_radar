@@ -10,6 +10,7 @@ except Exception:
 
 
 DEFAULT_DAILY_TASK_TIME = "21:00"
+DEFAULT_OFFICIAL_STATUS_SUMMARY_URL = "https://status.vrchat.com/api/v2/summary.json"
 
 
 @dataclass(slots=True)
@@ -46,6 +47,10 @@ class PluginConfig:
     adaptive_polling_min_seconds: int = 180
     adaptive_polling_max_seconds: int = 600
     low_frequency_health_check_seconds: int = 1800
+    enable_official_status_monitor: bool = False
+    official_status_poll_interval_seconds: int = 300
+    official_status_notify_group_ids: list[str] = field(default_factory=list)
+    official_status_summary_url: str = DEFAULT_OFFICIAL_STATUS_SUMMARY_URL
 
     def __init__(self, raw_config: Any, context: Any):
         self.raw_config = raw_config
@@ -105,6 +110,17 @@ class PluginConfig:
             self._read_int("adaptive_polling_max_seconds", 600),
         )
         self.low_frequency_health_check_seconds = max(600, self._read_int("low_frequency_health_check_seconds", 1800))
+        self.enable_official_status_monitor = self._read_bool("enable_official_status_monitor", False)
+        self.official_status_poll_interval_seconds = max(
+            120,
+            self._read_int("official_status_poll_interval_seconds", 300),
+        )
+        self.official_status_notify_group_ids = self._normalize_str_list(
+            self._read_list("official_status_notify_group_ids", [])
+        )
+        self.official_status_summary_url = str(
+            self._read("official_status_summary_url", DEFAULT_OFFICIAL_STATUS_SUMMARY_URL)
+        ).strip() or DEFAULT_OFFICIAL_STATUS_SUMMARY_URL
 
     def _has_key(self, key: str) -> bool:
         cfg = self.raw_config
@@ -199,6 +215,9 @@ class PluginConfig:
     def has_watch_friend_ids_key(self) -> bool:
         return self._has_key("watch_friend_ids")
 
+    def has_official_status_notify_group_ids_key(self) -> bool:
+        return self._has_key("official_status_notify_group_ids")
+
     def read_notify_group_ids_from_raw(self) -> list[str]:
         # 注意：这里缺省值必须是 []，不能回退到 runtime list；否则 WebUI 删除到空时会被旧值回填
         return self._normalize_str_list(self._read_list("notify_group_ids", []))
@@ -207,10 +226,15 @@ class PluginConfig:
         # 注意：这里缺省值必须是 []，不能回退到 runtime list；否则 WebUI 删除到空时会被旧值回填
         return self._normalize_str_list(self._read_list("watch_friend_ids", []))
 
+    def read_official_status_notify_group_ids_from_raw(self) -> list[str]:
+        # 注意：这里缺省值必须是 []，不能回退到 runtime list；否则 WebUI 删除到空时会被旧值回填
+        return self._normalize_str_list(self._read_list("official_status_notify_group_ids", []))
+
     def sync_runtime_lists(
         self,
         notify_group_ids: list[str] | None = None,
         watch_friend_ids: list[str] | None = None,
+        official_status_notify_group_ids: list[str] | None = None,
         write_back_raw: bool = True,
     ) -> None:
         if notify_group_ids is not None:
@@ -224,6 +248,12 @@ class PluginConfig:
             self.watch_friend_ids = normalized_watch
             if write_back_raw:
                 self._try_write_raw_list("watch_friend_ids", normalized_watch)
+
+        if official_status_notify_group_ids is not None:
+            normalized_official = self._normalize_str_list(official_status_notify_group_ids)
+            self.official_status_notify_group_ids = normalized_official
+            if write_back_raw:
+                self._try_write_raw_list("official_status_notify_group_ids", normalized_official)
 
     def _normalize_hhmm(self, value: str, fallback: str = DEFAULT_DAILY_TASK_TIME) -> str:
         text = (value or '').strip()

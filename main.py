@@ -19,6 +19,7 @@ from .core.monitor import MonitorService
 from .core.repository import SearchRepository, SettingsRepository
 from .core.search_state import SearchSession
 from .core.world_cache import WorldCache
+from .core.official_status import OfficialStatusService
 from .core.rendering import RenderingMixin
 from .core.plugin_helpers import PluginHelpersMixin
 from .core.event_dispatch import EventDispatchMixin
@@ -38,6 +39,7 @@ from .commands import (
     ReportCommandsMixin,
     AdminCommandsMixin,
     SoulProfileCommandsMixin,
+    OfficialStatusCommandsMixin,
 )
 
 
@@ -80,7 +82,7 @@ def _rebind_handlers_to_module(cls, module_name: str) -> None:
     "astrbot_plugin_vrc_friend_radar",
     "zhumengling",
     "VRChat 好友上线/状态/地图切换监控与播报，支持邀请审批、灵魂画像、同房提醒等。",
-    "0.2.4",
+    "0.2.5",
 )
 class VRCFriendRadarPlugin(
     Star,
@@ -97,6 +99,7 @@ class VRCFriendRadarPlugin(
     ReportCommandsMixin,
     AdminCommandsMixin,
     SoulProfileCommandsMixin,
+    OfficialStatusCommandsMixin,
 ):
     """VRChat 好友雷达插件主类"""
 
@@ -168,6 +171,13 @@ class VRCFriendRadarPlugin(
     # Bili
     bili_parse_command = BiliCommandsMixin.bili_parse_command
     bili_cover_command = BiliCommandsMixin.bili_cover_command
+    # Official status
+    official_status_query = OfficialStatusCommandsMixin.official_status_query
+    official_server_status_query = OfficialStatusCommandsMixin.official_server_status_query
+    bind_official_status_group = OfficialStatusCommandsMixin.bind_official_status_group
+    unbind_official_status_group = OfficialStatusCommandsMixin.unbind_official_status_group
+    show_official_status_groups = OfficialStatusCommandsMixin.show_official_status_groups
+    toggle_official_status_monitor = OfficialStatusCommandsMixin.toggle_official_status_monitor
 
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -178,26 +188,33 @@ class VRCFriendRadarPlugin(
         self.search_repo = SearchRepository(self.cfg)
         self.world_cache = WorldCache(self.cfg.data_dir)
         self.monitor = MonitorService(self.cfg, self.db, self.settings_repo)
+        self.official_status = OfficialStatusService(self.cfg, self.settings_repo)
         self.monitor.set_event_callback(self._handle_monitor_events)
         self.monitor.set_loop_tick_callback(self._handle_loop_tick)
         self.monitor.set_notice_callback(self._handle_monitor_notice)
         self.monitor.set_notification_sync_callback(self._handle_new_vrc_notifications)
+        self.official_status.set_change_callback(self._handle_official_status_change)
         self._search_sessions: dict[str, SearchSession] = {}
         self._daily_task_last_sent_date: dict[str, str] = {"daily_report": ""}
         self._translation_lock_map: dict[str, asyncio.Lock] = {}
         self._last_private_admin_sender_id: str = ""
 
-    def _reconcile_dynamic_lists_on_startup(self) -> tuple[list[str], list[str]]:
+    def _reconcile_dynamic_lists_on_startup(self) -> tuple[list[str], list[str], list[str]]:
         config_notify_groups = self.cfg.read_notify_group_ids_from_raw()
         config_watch_friends = self.cfg.read_watch_friend_ids_from_raw()
+        config_official_status_groups = self.cfg.read_official_status_notify_group_ids_from_raw()
         merged_notify_groups = self.settings_repo.sync_notify_groups_with_config(config_notify_groups)
         merged_watch_friends = self.settings_repo.sync_watch_friends_with_config(config_watch_friends)
+        merged_official_status_groups = self.settings_repo.sync_official_status_notify_groups_with_config(
+            config_official_status_groups
+        )
         self.cfg.sync_runtime_lists(
             notify_group_ids=merged_notify_groups,
             watch_friend_ids=merged_watch_friends,
+            official_status_notify_group_ids=merged_official_status_groups,
             write_back_raw=True,
         )
-        return merged_notify_groups, merged_watch_friends
+        return merged_notify_groups, merged_watch_friends, merged_official_status_groups
 
     def _sync_runtime_config_lists_from_repo(self) -> tuple[list[str], list[str]]:
         notify_groups = self.settings_repo.get_notify_groups()
@@ -214,17 +231,22 @@ class VRCFriendRadarPlugin(
         self._translation_lock_map.clear()
         self.db.initialize()
         self.settings_repo.initialize()
-        merged_notify_groups, merged_watch_friends = self._reconcile_dynamic_lists_on_startup()
+        merged_notify_groups, merged_watch_friends, merged_official_status_groups = self._reconcile_dynamic_lists_on_startup()
         self._daily_task_last_sent_date["daily_report"] = self.settings_repo.get_daily_report_last_sent_date()
         asyncio.create_task(self.monitor.start())
+        if self.cfg.enable_official_status_monitor:
+            self.official_status.start()
         self._register_llm_tools()
         logger.info(
-            "[vrc_friend_radar] 插件后台初始化开始，已同步列表: notify_groups=%s, watch_friends=%s",
+            "[vrc_friend_radar] 插件后台初始化开始，已同步列表: notify_groups=%s, watch_friends=%s, official_status_groups=%s, official_status_monitor=%s",
             len(merged_notify_groups),
             len(merged_watch_friends),
+            len(merged_official_status_groups),
+            self.cfg.enable_official_status_monitor,
         )
 
     async def terminate(self):
+        await self.official_status.stop()
         await self.monitor.stop()
         self._search_sessions.clear()
         self._translation_lock_map.clear()

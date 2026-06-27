@@ -109,6 +109,23 @@ class SettingsRepository:
         self.set_notify_groups(groups)
         return groups
 
+    def get_official_status_notify_groups(self) -> list[str]:
+        return self._normalize_str_list(self._parse_csv(self._get_raw("official_status_notify_groups")))
+
+    def set_official_status_notify_groups(self, groups: list[str]) -> None:
+        self._set_raw("official_status_notify_groups", self._dump_csv(self._normalize_str_list(groups)))
+
+    def add_official_status_notify_group(self, group_id: str) -> list[str]:
+        groups = self._merge_union(self.get_official_status_notify_groups(), [group_id])
+        self.set_official_status_notify_groups(groups)
+        return groups
+
+    def remove_official_status_notify_group(self, group_id: str) -> list[str]:
+        target = str(group_id or '').strip()
+        groups = [item for item in self.get_official_status_notify_groups() if item != target]
+        self.set_official_status_notify_groups(groups)
+        return groups
+
     def get_watch_friends(self) -> list[str]:
         return self._normalize_str_list(self._parse_csv(self._get_raw("watch_friends")))
 
@@ -134,6 +151,11 @@ class SettingsRepository:
     def sync_watch_friends_with_config(self, config_friend_ids: list[str] | None) -> list[str]:
         merged = self._merge_union(config_friend_ids, self.get_watch_friends())
         self.set_watch_friends(merged)
+        return merged
+
+    def sync_official_status_notify_groups_with_config(self, config_groups: list[str] | None) -> list[str]:
+        merged = self._merge_union(config_groups, self.get_official_status_notify_groups())
+        self.set_official_status_notify_groups(merged)
         return merged
 
     def get_daily_report_last_sent_date(self) -> str:

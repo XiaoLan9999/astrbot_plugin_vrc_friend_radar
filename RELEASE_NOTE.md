@@ -1,5 +1,18 @@
 # Release Note
 
+## 0.2.5
+
+- Added VRChat official Statuspage monitoring via `https://status.vrchat.com/api/v2/summary.json`.
+- Added independent official-status broadcast groups and commands:
+  - `/vrc官方状态监控 开启|关闭`
+  - `/vrc绑定官方状态群`
+  - `/vrc解绑官方状态群`
+  - `/vrc官方状态群`
+- Added manual public query commands:
+  - `/vrc官方状态`
+  - `/vrc服务器状态`
+- Official status broadcasts are separate from friend-dynamic notification groups and fire on outage/degraded-performance/maintenance/recovery changes.
+
 ## Summary
 This update significantly enhances the VRChat friend radar plugin with better friend presence monitoring, co-room awareness, daily summaries, hot world insights, login flow improvements, and overall stability fixes.
 

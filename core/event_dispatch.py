@@ -37,6 +37,10 @@ class EventDispatchMixin:
             return
         await self._push_login_notice_to_admins(text)
 
+    async def _handle_official_status_change(self: 'VRCFriendRadarPlugin', snapshot) -> None:
+        text = self.official_status.format_snapshot(snapshot, title="📡 VRChat 官方服务状态变更")
+        await self._send_chain_to_official_status_groups(MessageChain([Plain(text)]))
+
     async def _push_messages_to_notify_groups(self: 'VRCFriendRadarPlugin', messages: list[str]) -> None:
         if not messages:
             return
@@ -262,6 +266,24 @@ class EventDispatchMixin:
                 success += 1
             except Exception as exc:
                 logger.error(f"[vrc_friend_radar] 推送到群 {group_id} 失败: {exc}")
+        return success
+
+    async def _send_chain_to_official_status_groups(self: 'VRCFriendRadarPlugin', chain: MessageChain) -> int:
+        groups = self.official_status.get_effective_notify_groups()
+        if not groups:
+            return 0
+        success = 0
+        for group_id in groups:
+            try:
+                await StarTools.send_message_by_id(
+                    type="GroupMessage",
+                    id=str(group_id),
+                    message_chain=chain,
+                    platform="aiocqhttp",
+                )
+                success += 1
+            except Exception as exc:
+                logger.error(f"[vrc_friend_radar] 官方状态推送到群 {group_id} 失败: {exc}")
         return success
 
     async def _send_chain_to_private_users(self: 'VRCFriendRadarPlugin', user_ids: list[str], chain: MessageChain) -> int:
