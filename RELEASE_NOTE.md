@@ -1,5 +1,12 @@
 # Release Note
 
+## 0.2.7
+
+- Added proxy support for official Statuspage requests:
+  - `official_status_proxy_url`
+  - `official_status_trust_env_proxy`
+- Default behavior now honors `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` environment variables, which is useful for mainland China servers that cannot directly reach `status.vrchat.com`.
+
 ## 0.2.6
 
 - Hardened `/vrc官方状态` and `/vrc服务器状态` against empty timeout errors.

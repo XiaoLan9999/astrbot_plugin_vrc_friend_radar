@@ -51,6 +51,8 @@ class PluginConfig:
     official_status_poll_interval_seconds: int = 300
     official_status_notify_group_ids: list[str] = field(default_factory=list)
     official_status_summary_url: str = DEFAULT_OFFICIAL_STATUS_SUMMARY_URL
+    official_status_proxy_url: str = ""
+    official_status_trust_env_proxy: bool = True
 
     def __init__(self, raw_config: Any, context: Any):
         self.raw_config = raw_config
@@ -121,6 +123,10 @@ class PluginConfig:
         self.official_status_summary_url = str(
             self._read("official_status_summary_url", DEFAULT_OFFICIAL_STATUS_SUMMARY_URL)
         ).strip() or DEFAULT_OFFICIAL_STATUS_SUMMARY_URL
+        self.official_status_proxy_url = str(
+            self._read("official_status_proxy_url", "")
+        ).strip()
+        self.official_status_trust_env_proxy = self._read_bool("official_status_trust_env_proxy", True)
 
     def _has_key(self, key: str) -> bool:
         cfg = self.raw_config

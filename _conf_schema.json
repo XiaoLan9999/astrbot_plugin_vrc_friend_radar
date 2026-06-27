@@ -210,6 +210,18 @@
     "hint": "默认使用 VRChat 官方 Statuspage summary JSON；通常不需要修改。",
     "default": "https://status.vrchat.com/api/v2/summary.json"
   },
+  "official_status_proxy_url": {
+    "type": "string",
+    "description": "官方状态页请求代理 URL",
+    "hint": "中国大陆服务器直连 status.vrchat.com 超时时可填写，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:7890。留空时按 official_status_trust_env_proxy 决定是否读取 HTTP_PROXY/HTTPS_PROXY 环境变量。",
+    "default": ""
+  },
+  "official_status_trust_env_proxy": {
+    "type": "bool",
+    "description": "官方状态页请求读取环境变量代理",
+    "hint": "默认开启，会读取 AstrBot 进程环境变量中的 HTTP_PROXY、HTTPS_PROXY、ALL_PROXY、NO_PROXY。若环境代理配置错误导致请求异常，可关闭并改填 official_status_proxy_url。",
+    "default": true
+  },
   "bilibili_cookie": {
     "type": "text",
     "description": "B 站 Cookie（可选）",

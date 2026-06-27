@@ -103,6 +103,8 @@ pyotp>=2.9.0
 | `official_status_poll_interval_seconds` | int | 300 | 官方状态页轮询间隔；代码最小约束 `120`。 |
 | `official_status_notify_group_ids` | list[string] | `[]` | 官方状态播报群列表，独立于好友动态通知群。 |
 | `official_status_summary_url` | string | `https://status.vrchat.com/api/v2/summary.json` | VRChat 官方 Statuspage summary API，通常无需修改。 |
+| `official_status_proxy_url` | string | `""` | 官方状态页请求代理；大陆服务器直连超时时可填 `http://127.0.0.1:7890` 或 `socks5://127.0.0.1:7890`。 |
+| `official_status_trust_env_proxy` | bool | true | 是否读取 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` 等环境变量代理。 |
 
 ---
 
@@ -162,6 +164,7 @@ pyotp>=2.9.0
 
 - **自适应轮询**：启用后依据监控好友在线数量在 `adaptive_polling_min_seconds` 与 `adaptive_polling_max_seconds` 之间动态调速。
 - **官方状态页监控**：`enable_official_status_monitor=true` 时按 `official_status_poll_interval_seconds` 查询 VRChat 官方状态页；故障、性能下降、维护或恢复会推送到 `official_status_notify_group_ids`。
+  - 中国大陆服务器若直连超时，可设置 `official_status_proxy_url`，或给 AstrBot 进程配置 `HTTP_PROXY` / `HTTPS_PROXY` 环境变量并保持 `official_status_trust_env_proxy=true`。
 - **站内通知同步**：`enable_notification_sync=true` 时按 `notification_sync_interval_seconds` 周期拉取 VRChat 通知，收到新好友请求/邀请会私聊管理员摘要提醒。
 - **LLM 工具**：插件会自动向 AstrBot 注册 5 个 FunctionTool（`vrc_friend_status` / `vrc_online_friends` / `vrc_search_world` / `vrc_hot_worlds_today` / `vrc_coroom_groups`），Agent 可直接调用。
 

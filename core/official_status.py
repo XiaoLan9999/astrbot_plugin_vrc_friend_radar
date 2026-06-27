@@ -274,10 +274,18 @@ class OfficialStatusService:
             last_status = _label(self._last_snapshot.indicator, INDICATOR_LABELS)
         if self._last_error:
             last_status = f"最近失败：{self._last_error}"
+        proxy_url = _to_text(getattr(self.cfg, "official_status_proxy_url", ""))
+        if proxy_url:
+            proxy_mode = f"显式代理({proxy_url})"
+        elif bool(getattr(self.cfg, "official_status_trust_env_proxy", True)):
+            proxy_mode = "环境变量代理"
+        else:
+            proxy_mode = "直连"
         return (
             f"官方状态监控：{'开启' if self.cfg.enable_official_status_monitor else '关闭'}\n"
             f"轮询间隔：{self.cfg.official_status_poll_interval_seconds} 秒\n"
             f"播报群数：{len(groups)}\n"
+            f"代理模式：{proxy_mode}\n"
             f"最近状态：{last_status}"
         )
 
@@ -337,12 +345,15 @@ class OfficialStatusService:
         timeout_seconds = max(1.0, min(float(timeout_seconds or 4.0), 15.0))
         deadline = time.monotonic() + timeout_seconds
         errors: list[str] = []
+        proxy_url = _to_text(getattr(self.cfg, "official_status_proxy_url", ""))
+        trust_env_proxy = bool(getattr(self.cfg, "official_status_trust_env_proxy", True))
 
         async with httpx.AsyncClient(
             timeout=self._build_http_timeout(timeout_seconds),
             headers=headers,
             follow_redirects=True,
-            trust_env=False,
+            proxy=proxy_url or None,
+            trust_env=trust_env_proxy,
             http2=False,
         ) as client:
             for url in self._status_url_candidates():
